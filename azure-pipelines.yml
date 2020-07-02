@@ -1,0 +1,59 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+variables:
+  imageName: 'subhashmeena/todo-backend'
+
+steps:
+
+# Maven
+# Build, test, and deploy with Apache Maven
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml' 
+    goals: 'package' # Optional
+    publishJUnitResults: true 
+    testResultsFiles: '**/surefire-reports/TEST-*.xml' 
+
+
+  
+
+
+- task: CopyFiles@2
+  displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+  inputs:
+    SourceFolder: '$(system.defaultworkingdirectory)'
+    Contents: '**/*.jar'
+    TargetFolder: '$(build.artifactstagingdirectory)'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: drop'
+  inputs:
+    PathtoPublish: '$(build.artifactstagingdirectory)'
+    ArtifactName: builtjarfile
+
+- task: DownloadPipelineArtifact@2
+  inputs:
+    artifact: builtjarfile
+
+- task: Docker@2
+  displayName: Login to Dockerhub
+  inputs:
+    command: login
+    containerRegistry: Dockerhub
+- task: Docker@2
+  displayName: Build an image
+  inputs:
+    repository: $(imageName)
+    command: build
+    Dockerfile: Dockerfile
+
+- task: Docker@2
+  displayName: Push image
+  inputs:
+    containerRegistry: Dockerhub
+    repository: $(imageName)
+    command: push
